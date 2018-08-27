@@ -9,6 +9,11 @@ from six.moves import cPickle as pickle
 
 from pelican.utils import mkdir_p
 
+try:
+    import xxhash
+except ImportError:
+    pass
+
 logger = logging.getLogger(__name__)
 
 
@@ -89,6 +94,28 @@ class FileStampDataCacher(FileDataCacher):
         method = self.settings['CHECK_MODIFIED_METHOD']
         if method == 'mtime':
             self._filestamp_func = os.path.getmtime
+        elif method == 'xxhash64':
+            try:
+                def filestamp_func(filename):
+                    """return hash of file contents"""
+                    with open(filename, 'rb') as fhandle:
+                        return xxhash.xxh64(fhandle.read()).digest()
+
+                self._filestamp_func = filestamp_func
+            except NameError as err:
+                logger.warning('Could not get xxhash function\n\t%s', err)
+                self._filestamp_func = None
+        elif method == 'xxhash32':
+            try:
+                def filestamp_func(filename):
+                    """return hash of file contents"""
+                    with open(filename, 'rb') as fhandle:
+                        return xxhash.xxh32(fhandle.read()).digest()
+
+                self._filestamp_func = filestamp_func
+            except NameError as err:
+                logger.warning('Could not get xxhash function\n\t%s', err)
+                self._filestamp_func = None
         else:
             try:
                 hash_func = getattr(hashlib, method)
